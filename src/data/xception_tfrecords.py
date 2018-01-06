@@ -59,8 +59,10 @@ def make_example(product) -> tf.train.Example:
 
 
 examples_per_tfrecord = 20 if environ.get('TEST_RUN') == 'true' else 20_000
+bson_file = 'train_example.bson' if environ.get('TEST_RUN') == 'true' else 'train.bson'
+print(f'Processing {bson_file} into records of {examples_per_tfrecord} examples each')
 
-products = products_from_bson(path.join(data_raw_dir, 'train_example.bson' if environ.get('TEST_RUN') == 'true' else 'train.bson'))
+products = products_from_bson(path.join(data_raw_dir, bson_file))
 products_with_feats = itertools.chain.from_iterable(
     map(extract_features, batches_from(products, 64, allow_shorter=True)))
 examples = map(make_example, products_with_feats)
@@ -68,7 +70,7 @@ examples = map(make_example, products_with_feats)
 total_count = 0
 for batch_num, examples_batch in enumerate(batches_from(examples, examples_per_tfrecord, allow_shorter=True)):
     filename = path_expression_train.format(batch_num) \
-        if batch_num % 10 == 0 \
+        if batch_num % 10 != 0 \
         else path_expression_test.format(batch_num)
     with tf.python_io.TFRecordWriter(filename, options=options) as writer:
         count = 0
