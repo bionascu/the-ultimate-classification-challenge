@@ -11,6 +11,7 @@ from data.category_counts import category_counts
 from model import model
 from model.loss_function import *
 from utils import data_processed_dir
+from utils import logs_dir, models_dir
 
 
 def create_computational_graph(data_path, batch_size):
@@ -55,7 +56,7 @@ test_acc_summary = tf.summary.scalar('test_acc', test_acc)
 train_loss_summary = tf.summary.scalar('train_loss', train_loss)
 test_loss_summary = tf.summary.scalar('test_loss', test_loss)
 
-
+saver = tf.train.Saver(model.trainable_weights)
 
 with tf.Session() as sess:
 
@@ -63,7 +64,7 @@ with tf.Session() as sess:
     train_merged = tf.summary.merge([train_acc_summary, train_loss_summary])
     test_merged = tf.summary.merge([test_acc_summary, test_loss_summary])
 
-    summary_writer = tf.summary.FileWriter('../logs', sess.graph)
+    summary_writer = tf.summary.FileWriter(logs_dir, sess.graph)
 
     #train_writer = tf.summary.FileWriter(path.join('../logs', 'train'), sess.graph)
     #test_writer = tf.summary.FileWriter(path.join('../logs', 'test'))
@@ -93,5 +94,8 @@ with tf.Session() as sess:
                 print(f'Epoch {epoch_num} batch {batch_num}: train accuracy {a} train loss {l}')
         except OutOfRangeError:
             pass
+
+        save_path = saver.save(sess, models_dir,global_step=gs)
+        print(f'Model saved in {save_path}')
 
     summary_writer.close()
