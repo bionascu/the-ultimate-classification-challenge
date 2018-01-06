@@ -30,7 +30,7 @@ def categories_from_bson(filename):
 
 
 product_categories = pd.DataFrame.from_records(
-    categories_from_bson(path.join(data_raw_dir, 'train_example.bson' if environ.get('DRY_RUN') == 'true' else 'train.bson')),
+    categories_from_bson(path.join(data_raw_dir, 'train_example.bson' if environ.get('TEST_RUN') == 'true' else 'train.bson')),
     columns=category_columns)
 
 for col_name in product_categories.columns.drop('prod_id'):
