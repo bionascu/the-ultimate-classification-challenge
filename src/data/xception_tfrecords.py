@@ -1,6 +1,7 @@
 import io
 import bson
 import itertools
+import sys
 from os import path, environ
 
 import numpy as np
@@ -26,9 +27,15 @@ encoder_cat_id = joblib.load(path.join(path.join(data_processed_dir, 'encoder_ca
 xception = Xception(include_top=False, weights='imagenet')
 xception_batch_size = 512 if environ.get('TEST_RUN') == 'true' else 2048
 
+examples_per_tfrecord = 20 if environ.get('TEST_RUN') == 'true' else 20000
+skip_first_records = int(sys.argv[1])
+n_records = 20
+
 
 def products_from_bson(filename):
-    for product in bson.decode_file_iter(open(filename, 'rb')):
+    for product in itertools.islice(bson.decode_file_iter(open(filename, 'rb')),
+                                    start=skip_first_records * examples_per_tfrecord,
+                                    stop=skip_first_records * examples_per_tfrecord + n_records * examples_per_tfrecord):
         product_id = product['_id']
         category_id = encoder_cat_id.transform([int(product['category_id'])])[0]
         category_levels = categories.loc[category_id]
@@ -60,9 +67,9 @@ def make_example(product) -> tf.train.Example:
     }))
 
 
-examples_per_tfrecord = 20 if environ.get('TEST_RUN') == 'true' else 16 * 1024
 bson_file = 'train_example.bson' if environ.get('TEST_RUN') == 'true' else 'train.bson'
 print(f'Processing {bson_file}\n'
+      f'Skipping {skip_first_records * examples_per_tfrecord}\n'
       f'Xception will process {xception_batch_size} images at the time\n'
       f'Creating records of {examples_per_tfrecord} examples each\n')
 
@@ -86,4 +93,3 @@ for example_num, example in enumerate(tqdm_examples):
         tqdm_examples.write('Writing to {}'.format(path.basename(filename)))
         writer = tf.python_io.TFRecordWriter(filename, options=options)
     writer.write(example.SerializeToString())
-
