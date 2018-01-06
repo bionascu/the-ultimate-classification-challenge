@@ -15,8 +15,7 @@ from tqdm import tqdm
 from utils import data_raw_dir, data_processed_dir, batches_from
 
 options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.ZLIB)
-path_expression_train = path.join(data_processed_dir, 'train_{}.tfrecord')
-path_expression_test = path.join(data_processed_dir, 'test_{}.tfrecord')
+path_expression_train = path.join(data_processed_dir, 'train_{}_{}.tfrecord')
 
 categories = pd.read_pickle(path.join(data_processed_dir, 'categories.pickle'))
 encoder_cat_1 = joblib.load(path.join(path.join(data_processed_dir, 'encoder_cat_1.pickle')))
@@ -88,8 +87,7 @@ for example_num, example in enumerate(tqdm_examples):
         if writer:
             writer.close()
         batch_num = example_num // examples_per_tfrecord
-        filename = path_expression_test.format(batch_num) if batch_num % 10 == 0 \
-            else path_expression_train.format(batch_num)
+        filename = path_expression_train.format(skip_first_records, batch_num)
         tqdm_examples.write('Writing to {}'.format(path.basename(filename)))
         writer = tf.python_io.TFRecordWriter(filename, options=options)
     writer.write(example.SerializeToString())
