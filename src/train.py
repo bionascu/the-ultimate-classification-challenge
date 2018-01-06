@@ -39,6 +39,7 @@ def create_computational_graph(data_path, batch_size):
 
     return dataset_iterator, next_batch, acc, loss
 
+run_id = datetime.datetime.now().isoformat()
 
 # Create train graph
 train_dataset_iterator, train_next_batch, train_acc, train_loss = \
@@ -64,8 +65,7 @@ with tf.Session() as sess:
     train_merged = tf.summary.merge([train_acc_summary, train_loss_summary])
     test_merged = tf.summary.merge([test_acc_summary, test_loss_summary])
 
-    timestamp = datetime.datetime.now().isoformat()
-    summary_writer = tf.summary.FileWriter(path.join(logs_dir, timestamp), sess.graph)
+    summary_writer = tf.summary.FileWriter(path.join(logs_dir, run_id), sess.graph)
 
     # train_writer = tf.summary.FileWriter(path.join('../logs', 'train'), sess.graph)
     # test_writer = tf.summary.FileWriter(path.join('../logs', 'test'))
@@ -81,7 +81,7 @@ with tf.Session() as sess:
             for batch_num in itertools.count():
                 summary, a, l, gs = sess.run([test_merged, test_acc, test_loss, global_step],
                                              feed_dict={K.learning_phase(): 0})
-                summary_writer.add_summary(summary, gs)  # TODO batch_num?
+                summary_writer.add_summary(summary, gs)
                 print(f'Epoch {epoch_num}: test accuracy {a} test loss {l}')
         except OutOfRangeError:
             pass
@@ -96,7 +96,7 @@ with tf.Session() as sess:
         except OutOfRangeError:
             pass
 
-        save_path = saver.save(sess, models_dir, global_step=gs)
+        save_path = saver.save(sess, path.join(models_dir, run_id, 'model.ckpt'), global_step=global_step)
         print(f'Model saved in {save_path}')
 
     summary_writer.close()
