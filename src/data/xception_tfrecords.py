@@ -1,39 +1,26 @@
 import io
 import bson
 import itertools
-from os import path
+from os import path, environ
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from skimage.data import imread
 from sklearn.externals import joblib
-from sklearn.preprocessing import LabelEncoder
 from keras.applications.xception import Xception
 
 from utils import data_raw_dir, data_processed_dir, batches_from
 
 options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.ZLIB)
-path_expression = path.join(data_processed_dir, 'train{}.tfrecord')
+path_expression_train = path.join(data_processed_dir, 'train_{}.tfrecord')
+path_expression_test = path.join(data_processed_dir, 'test_{}.tfrecord')
 
-categories = pd.read_csv(path.join(data_raw_dir, 'category_names.csv'))
-
-encoder_cat_1 = LabelEncoder()
-encoder_cat_2 = LabelEncoder()
-encoder_cat_3 = LabelEncoder()
-encoder_cat_id = LabelEncoder()
-
-categories['category_level1'] = encoder_cat_1.fit_transform(categories.category_level1)
-categories['category_level2'] = encoder_cat_2.fit_transform(categories.category_level2)
-categories['category_level3'] = encoder_cat_3.fit_transform(categories.category_level3)
-categories['category_id'] = encoder_cat_id.fit_transform(categories.category_id)
-
-joblib.dump(encoder_cat_1, path.join(path.join(data_processed_dir, 'encoder_cat_1.pickle')))
-joblib.dump(encoder_cat_2, path.join(path.join(data_processed_dir, 'encoder_cat_2.pickle')))
-joblib.dump(encoder_cat_3, path.join(path.join(data_processed_dir, 'encoder_cat_3.pickle')))
-joblib.dump(encoder_cat_id, path.join(path.join(data_processed_dir, 'encoder_cat_id.pickle')))
-
-categories.set_index('category_id', inplace=True)
+categories = pd.read_pickle(path.join(data_processed_dir, 'categories.pickle'))
+encoder_cat_1 = joblib.load(path.join(path.join(data_processed_dir, 'encoder_cat_1.pickle')))
+encoder_cat_2 = joblib.load(path.join(path.join(data_processed_dir, 'encoder_cat_2.pickle')))
+encoder_cat_3 = joblib.load(path.join(path.join(data_processed_dir, 'encoder_cat_3.pickle')))
+encoder_cat_id = joblib.load(path.join(path.join(data_processed_dir, 'encoder_cat_id.pickle')))
 
 xception = Xception(include_top=False, weights='imagenet')
 
@@ -47,9 +34,9 @@ def products_from_bson(filename):
             yield {
                 'prod_id': product_id,
                 'cat_id': category_id,
-                'cat_1': category_levels.category_level1,
-                'cat_2': category_levels.category_level2,
-                'cat_3': category_levels.category_level3,
+                'cat_1': category_levels.cat_1,
+                'cat_2': category_levels.cat_2,
+                'cat_3': category_levels.cat_3,
                 'img': imread(io.BytesIO(product_picture['picture']))
             }
 
@@ -71,20 +58,22 @@ def make_example(product) -> tf.train.Example:
     }))
 
 
-examples_per_tfrecord = 20
+examples_per_tfrecord = 20 if environ.get('TEST_RUN') == 'true' else 20_000
 
-products = products_from_bson(path.join(data_raw_dir, 'train_example.bson'))
+products = products_from_bson(path.join(data_raw_dir, 'train_example.bson' if environ.get('TEST_RUN') == 'true' else 'train.bson'))
 products_with_feats = itertools.chain.from_iterable(
     map(extract_features, batches_from(products, 64, allow_shorter=True)))
 examples = map(make_example, products_with_feats)
 
 total_count = 0
 for batch_num, examples_batch in enumerate(batches_from(examples, examples_per_tfrecord, allow_shorter=True)):
-    filename = path_expression.format(batch_num)
+    filename = path_expression_train.format(batch_num) \
+        if batch_num % 10 == 0 \
+        else path_expression_test.format(batch_num)
     with tf.python_io.TFRecordWriter(filename, options=options) as writer:
         count = 0
         for example in examples_batch:
             writer.write(example.SerializeToString())
             count += 1
     total_count += count
-    print(f'Written {count} examples into {path.basename(filename)}, total examples {total_count}')
+    print('Written {} examples into {} total examples {}'.format(count, path.basename(filename), total_count))

@@ -6,6 +6,7 @@ import tensorflow as tf
 def negative_sampling(labels, logits, counts, ns_size):
     # Create sampling probability as a tensor
     base_prob = tf.constant((counts.values ** .75) / (counts.values ** .75).sum())
+    base_prob = tf.ones((5270,))
     sampling_prob = tf.reshape(tf.tile(base_prob, tf.shape(labels)), tf.shape(logits))
     # sampling_prob = tf.Variable(tf.reshape(tf.tile(base_prob, tf.shape(labels)), tf.shape(logits)))
 
