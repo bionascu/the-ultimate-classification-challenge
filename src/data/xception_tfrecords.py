@@ -34,8 +34,8 @@ n_records = 20
 
 def products_from_bson(filename):
     for product in itertools.islice(bson.decode_file_iter(open(filename, 'rb')),
-                                    start=skip_first_records * examples_per_tfrecord,
-                                    stop=skip_first_records * examples_per_tfrecord + n_records * examples_per_tfrecord):
+                                    skip_first_records * examples_per_tfrecord,
+                                    skip_first_records * examples_per_tfrecord + n_records * examples_per_tfrecord):
         product_id = product['_id']
         category_id = encoder_cat_id.transform([int(product['category_id'])])[0]
         category_levels = categories.loc[category_id]
