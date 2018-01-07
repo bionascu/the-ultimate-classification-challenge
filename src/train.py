@@ -101,23 +101,33 @@ with tf.Session() as sess:
 
         # Record summaries and train-set accuracy
         try:
-            for batch_num in itertools.count(1):
+            for batch_num in itertools.count(0):
                 summary, a, l, _, gs = sess.run([train_merged, train_acc, train_loss, optimizer_step, global_step],
                                                 feed_dict={K.learning_phase(): 1})
                 summary_writer.add_summary(summary, gs)
                 tqdm_progress.update(args.train_batch_size)
                 tqdm_progress.set_postfix(epoch=f'{epoch_num}/args.epochs', batch=batch_num, accuracy=f'{a:.3%}', loss=f'{l:.6f}')
+
+                # Record summaries and test-set accuracy
+                if batch_num % 3 == 0:
+                    summary, a, l, gs = sess.run([test_merged, test_acc, test_loss, global_step],
+                                                 feed_dict={K.learning_phase(): 0})
+                    summary_writer.add_summary(summary, gs)
+                    tqdm_progress.write(f'Test epoch {epoch_num}\tgs {gs}:\tacc {a:.3%}\tloss {l:.6f}')
+
+                if batch_num % 10:
+                    save_path = saver.save(sess, path.join(checkpoint_dir, 'model'), global_step=global_step)
+                    tqdm_progress.write(f'Model saved in {save_path}')
         except OutOfRangeError:
             pass
 
-        # Record summaries and test-set accuracy
-        summary, a, l, gs = sess.run([test_merged, test_acc, test_loss, global_step],
-                                     feed_dict={K.learning_phase(): 0})
-        summary_writer.add_summary(summary, gs)
-        tqdm_progress.write(f'Completed epoch {epoch_num}\tgs {gs}:\tacc {a:.3%}\tloss {l:.6f}')
+    summary, a, l, gs = sess.run([test_merged, test_acc, test_loss, global_step],
+                                 feed_dict={K.learning_phase(): 0})
+    summary_writer.add_summary(summary, gs)
+    tqdm_progress.write(f'Test epoch {epoch_num}\tgs {gs}:\tacc {a:.3%}\tloss {l:.6f}')
 
-        save_path = saver.save(sess, path.join(checkpoint_dir, 'model'), global_step=global_step)
-        tqdm_progress.write(f'Model saved in {save_path}')
+    save_path = saver.save(sess, path.join(checkpoint_dir, 'model'), global_step=global_step)
+    tqdm_progress.write(f'Model saved in {save_path}')
 
     tqdm_progress.close()
     summary_writer.close()
