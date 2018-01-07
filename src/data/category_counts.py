@@ -6,13 +6,8 @@ from sklearn.externals import joblib
 
 from utils.paths import data_raw_dir, data_processed_dir
 
-encoder_cat_1 = joblib.load(path.join(path.join(data_processed_dir, 'encoder_cat_1.pickle')))
-encoder_cat_2 = joblib.load(path.join(path.join(data_processed_dir, 'encoder_cat_2.pickle')))
-encoder_cat_3 = joblib.load(path.join(path.join(data_processed_dir, 'encoder_cat_3.pickle')))
 encoder_cat_id = joblib.load(path.join(path.join(data_processed_dir, 'encoder_cat_id.pickle')))
-
 categories = pd.read_pickle(path.join(data_processed_dir, 'categories.pickle'))
-
 category_columns = ['prod_id', 'cat_id', 'cat_1', 'cat_2', 'cat_3', ]
 
 def categories_from_bson(filename):
