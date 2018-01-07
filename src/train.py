@@ -2,7 +2,7 @@ import glob
 import itertools
 import datetime
 import argparse
-from os import path
+from os import path, getpid
 
 from keras import backend as K
 from tensorflow.python.framework.errors_impl import OutOfRangeError
@@ -27,6 +27,8 @@ checkpoint_dir = path.join(models_dir, args.run_id)
 if args.restore and tf.train.latest_checkpoint(checkpoint_dir) is None:
     print(f'Could not restore {args.run_id}')
     exit(1)
+
+print(f'Process pid: {getpid()}')
 
 # Create train graph
 with tf.name_scope('data_reader_train'):
@@ -72,7 +74,12 @@ with tf.name_scope('metrics'):
     train_loss_summary = tf.summary.scalar('train_loss', train_loss)
     test_loss_summary = tf.summary.scalar('test_loss', test_loss)
 
-saver = tf.train.Saver(max_to_keep=2)
+saver = tf.train.Saver(
+    model.trainable_weights +
+    [global_step] +
+    [v for v in tf.global_variables() if 'Adam' in v.name],
+    max_to_keep=2
+)
 
 with tf.Session() as sess:
     # Merge all the summaries and write them out to the logs folder
@@ -94,12 +101,12 @@ with tf.Session() as sess:
 
         # Record summaries and train-set accuracy
         try:
-            for batch_num in itertools.count():
+            for batch_num in itertools.count(1):
                 summary, a, l, _, gs = sess.run([train_merged, train_acc, train_loss, optimizer_step, global_step],
                                                 feed_dict={K.learning_phase(): 1})
                 summary_writer.add_summary(summary, gs)
                 tqdm_progress.update(args.train_batch_size)
-                tqdm_progress.set_postfix(epoch=epoch_num, batch=batch_num, accuracy=f'{a:.3%}', loss=f'{l:.6f}')
+                tqdm_progress.set_postfix(epoch=f'{epoch_num}/args.epochs', batch=batch_num, accuracy=f'{a:.3%}', loss=f'{l:.6f}')
         except OutOfRangeError:
             pass
 
