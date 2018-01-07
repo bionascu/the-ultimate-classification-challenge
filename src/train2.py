@@ -108,7 +108,7 @@ with tf.Session() as sess:
                                                 feed_dict={K.learning_phase(): 1})
                 summary_writer.add_summary(summary, gs)
                 tqdm_progress.update(args.train_batch_size)
-                tqdm_progress.set_postfix(epoch=f'{epoch_num}/args.epochs', batch=batch_num, accuracy=f'{a:.3%}', loss=f'{l:.6f}')
+                tqdm_progress.set_postfix(epoch=f'{epoch_num}/{args.epochs}', batch=batch_num, accuracy=f'{a:.3%}', loss=f'{l:.6f}')
 
                 # Record summaries and test-set accuracy
                 if batch_num % 3 == 0:
