@@ -1,6 +1,7 @@
 import io
 import bson
 import itertools
+import sys
 from os import path, environ
 
 import numpy as np
@@ -9,12 +10,12 @@ import tensorflow as tf
 from skimage.data import imread
 from sklearn.externals import joblib
 from keras.applications.xception import Xception
+from tqdm import tqdm
 
 from utils import data_raw_dir, data_processed_dir, batches_from
 
 options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.ZLIB)
-path_expression_train = path.join(data_processed_dir, 'train_{}.tfrecord')
-path_expression_test = path.join(data_processed_dir, 'test_{}.tfrecord')
+path_expression_train = path.join(data_processed_dir, 'train_{}_{}.tfrecord')
 
 categories = pd.read_pickle(path.join(data_processed_dir, 'categories.pickle'))
 encoder_cat_1 = joblib.load(path.join(path.join(data_processed_dir, 'encoder_cat_1.pickle')))
@@ -23,10 +24,17 @@ encoder_cat_3 = joblib.load(path.join(path.join(data_processed_dir, 'encoder_cat
 encoder_cat_id = joblib.load(path.join(path.join(data_processed_dir, 'encoder_cat_id.pickle')))
 
 xception = Xception(include_top=False, weights='imagenet')
+xception_batch_size = 512 if environ.get('TEST_RUN') == 'true' else 2048
+
+examples_per_tfrecord = 20 if environ.get('TEST_RUN') == 'true' else 20000
+skip_first_records = int(sys.argv[1])
+n_records = 20
 
 
 def products_from_bson(filename):
-    for product in bson.decode_file_iter(open(filename, 'rb')):
+    for product in itertools.islice(bson.decode_file_iter(open(filename, 'rb')),
+                                    skip_first_records * examples_per_tfrecord,
+                                    skip_first_records * examples_per_tfrecord + n_records * examples_per_tfrecord):
         product_id = product['_id']
         category_id = encoder_cat_id.transform([int(product['category_id'])])[0]
         category_levels = categories.loc[category_id]
@@ -43,7 +51,7 @@ def products_from_bson(filename):
 
 def extract_features(products):
     images = np.stack((p['img'] for p in products), axis=0)
-    features = xception.predict(images)
+    features = xception.predict(images, batch_size=xception_batch_size)
     return [{**p, 'features': feats} for p, feats in zip(products, features)]
 
 
@@ -58,24 +66,28 @@ def make_example(product) -> tf.train.Example:
     }))
 
 
-examples_per_tfrecord = 20 if environ.get('TEST_RUN') == 'true' else 20_000
 bson_file = 'train_example.bson' if environ.get('TEST_RUN') == 'true' else 'train.bson'
-print(f'Processing {bson_file} into records of {examples_per_tfrecord} examples each')
+print(f'Processing {bson_file}\n'
+      f'Skipping {skip_first_records * examples_per_tfrecord}\n'
+      f'Xception will process {xception_batch_size} images at the time\n'
+      f'Creating records of {examples_per_tfrecord} examples each\n')
 
 products = products_from_bson(path.join(data_raw_dir, bson_file))
 products_with_feats = itertools.chain.from_iterable(
-    map(extract_features, batches_from(products, 64, allow_shorter=True)))
+    map(extract_features, batches_from(products, xception_batch_size, allow_shorter=True)))
 examples = map(make_example, products_with_feats)
 
-total_count = 0
-for batch_num, examples_batch in enumerate(batches_from(examples, examples_per_tfrecord, allow_shorter=True)):
-    filename = path_expression_train.format(batch_num) \
-        if batch_num % 10 != 0 \
-        else path_expression_test.format(batch_num)
-    with tf.python_io.TFRecordWriter(filename, options=options) as writer:
-        count = 0
-        for example in examples_batch:
-            writer.write(example.SerializeToString())
-            count += 1
-    total_count += count
-    print('Written {} examples into {} total examples {}'.format(count, path.basename(filename), total_count))
+count = 0
+filename = None
+writer = None
+
+tqdm_examples = tqdm(examples, unit=' examples')
+for example_num, example in enumerate(tqdm_examples):
+    if example_num % examples_per_tfrecord == 0:
+        if writer:
+            writer.close()
+        batch_num = example_num // examples_per_tfrecord
+        filename = path_expression_train.format(skip_first_records, batch_num)
+        tqdm_examples.write('Writing to {}'.format(path.basename(filename)))
+        writer = tf.python_io.TFRecordWriter(filename, options=options)
+    writer.write(example.SerializeToString())
