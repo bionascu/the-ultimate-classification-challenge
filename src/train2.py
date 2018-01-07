@@ -2,6 +2,7 @@ import glob
 import itertools
 import datetime
 import argparse
+import pandas as pd
 from os import path, getpid
 
 from keras import backend as K
@@ -44,8 +45,9 @@ logits = model(train_next_batch['features'])
 
 correct_prediction = tf.equal(train_next_batch['cat_id'], tf.argmax(logits, axis=1))
 train_acc = tf.reduce_mean(tf.cast(correct_prediction, tf.float32), name='accuracy')
-train_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
-    labels=train_next_batch['cat_id'], logits=logits), name='loss')
+counts = pd.read_pickle(path.join(data_processed_dir, 'cat_id_counts.pickle'))
+train_loss = negative_sampling(labels=train_next_batch['cat_id'], logits=logits,
+                               counts=counts, ns_size=1000)
 
 optimizer = tf.train.AdamOptimizer()
 global_step = tf.Variable(0, name='global_step', trainable=False)
