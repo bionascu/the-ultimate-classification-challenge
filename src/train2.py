@@ -45,7 +45,7 @@ logits = model(train_next_batch['features'])
 
 correct_prediction = tf.equal(train_next_batch['cat_id'], tf.argmax(logits, axis=1))
 train_acc = tf.reduce_mean(tf.cast(correct_prediction, tf.float32), name='accuracy')
-counts = pd.read_pickle(path.join(data_processed_dir, 'cat_id_counts.pickle'))
+counts = pd.read_pickle(path.join(data_processed_dir, 'cat_id_img_distrib.pickle'))
 train_loss = negative_sampling(labels=train_next_batch['cat_id'], logits=logits,
                                counts=counts, ns_size=1000)
 
