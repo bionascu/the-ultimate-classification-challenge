@@ -50,8 +50,8 @@ product_distrib = pd.DataFrame.from_records(
 
 for col_name in product_distrib.columns.drop('prod_id'):
     category_counts = product_distrib[col_name].value_counts()
-    category_counts.to_pickle(path.join(data_processed_dir,
-                                        f'{col_name}_prod_distrib.pickle'))
+    category_counts.to_pickle(
+        path.join(data_processed_dir, f'{col_name}_prod_distrib.pickle'))
 
 
 # Create image distribution (by category)
@@ -61,5 +61,5 @@ image_distrib = pd.DataFrame.from_records(
 
 for col_name in image_distrib.columns.drop('prod_id', 'img_id'):
     category_counts = image_distrib[col_name].value_counts()
-    category_counts.to_pickle(path.join(data_processed_dir,
-                                        f'{col_name}_img_distrib.pickle'))
+    category_counts.to_pickle(
+        path.join(data_processed_dir, f'{col_name}_img_distrib.pickle'))

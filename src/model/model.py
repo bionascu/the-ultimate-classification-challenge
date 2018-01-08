@@ -11,22 +11,6 @@ num_classes_cat_2 = 483
 num_classes_cat_3 = 5263
 num_categories = 5270
 
-"""
-with tf.name_scope('network'):
-    model = Sequential()
-    model.add(Conv2D(1024,
-                     kernel_size=(4, 4),
-                     activation='relu',
-                     input_shape=input_shape))
-    model.add(Dropout(0.25))
-    model.add(Conv2D(512,
-                     kernel_size=(3, 3),
-                     activation='relu'))
-
-    model.add(Flatten())
-    model.add(Dense(num_categories, activation=None))
-"""
-
 with tf.name_scope('network'):
     model = Sequential()
     model.add(InputLayer(input_shape=input_shape))
